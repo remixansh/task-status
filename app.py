@@ -191,9 +191,12 @@ def generate_daily_summary(force=False):
         
         tasks_text = []
         latest_task_time = None
+        existing_summary_task_ref = None
+
         for doc in docs:
             t = doc.to_dict()
             if t.get('is_summary', False):
+                existing_summary_task_ref = doc.reference
                 continue
             
             tasks_text.append(f"- {t.get('title', 'No Title')} [{t.get('status', 'Pending')}]: {t.get('context', 'No Context')}")
@@ -234,8 +237,13 @@ def generate_daily_summary(force=False):
             'task_count': len(tasks_text),
             'timestamp': get_ist_now()
         }
-        doc_ref = db.collection('summaries').document()
-        doc_ref.set(summary_doc)
+        if existing_docs:
+            doc_ref = existing_docs[0].reference
+            doc_ref.update(summary_doc)
+        else:
+            doc_ref = db.collection('summaries').document()
+            doc_ref.set(summary_doc)
+            
         summary_doc['id'] = doc_ref.id
         summary_doc['timestamp'] = summary_doc['timestamp'].isoformat()
 
@@ -247,7 +255,11 @@ def generate_daily_summary(force=False):
             'timestamp': get_ist_now(),
             'is_summary': True
         }
-        db.collection('tasks').document().set(summary_task)
+        
+        if existing_summary_task_ref:
+            existing_summary_task_ref.update(summary_task)
+        else:
+            db.collection('tasks').document().set(summary_task)
 
         print(f"Generated daily summary for {today_str}")
         return {'generated': True, 'summary': summary_doc}

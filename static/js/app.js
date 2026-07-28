@@ -89,7 +89,30 @@ function getTaskDateKey(task) {
 // ============================================
 // API
 // ============================================
+function renderSkeletons() {
+    const grid = document.getElementById('task-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+        const card = document.createElement('div');
+        card.className = 'task-card skeleton-card';
+        card.style.animationDelay = `${i * 0.05}s`;
+        card.innerHTML = `
+            <div class="skeleton skeleton-title"></div>
+            <div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text short"></div>
+            </div>
+            <div class="skeleton skeleton-badge"></div>
+        `;
+        grid.appendChild(card);
+    }
+}
+
 async function fetchTasks() {
+    if (currentView === 'dashboard') {
+        renderSkeletons();
+    }
     try {
         const res = await fetch('/api/tasks');
         if (!res.ok) throw new Error('Failed');
@@ -99,6 +122,8 @@ async function fetchTasks() {
     } catch (e) {
         console.error('Fetch tasks:', e);
         showToast('Could not load tasks', 'error');
+        const grid = document.getElementById('task-grid');
+        if (grid) grid.innerHTML = `<div class="empty-state">Error loading tasks.</div>`;
     }
 }
 
