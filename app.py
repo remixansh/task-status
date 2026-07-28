@@ -91,6 +91,7 @@ def create_task():
             'context': data.get('context', ''),
             'status': data.get('status', 'Pending'),
             'timestamp': get_ist_now(),
+            'updated_at': get_ist_now(),
             'is_summary': False
         }
         doc_ref = db.collection('tasks').document()
@@ -107,6 +108,7 @@ def update_task(task_id):
         data = request.json or {}
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+        data['updated_at'] = get_ist_now()
         doc_ref = db.collection('tasks').document(task_id)
         doc_ref.update(data)
         return jsonify({'message': 'Task updated successfully'}), 200
@@ -201,8 +203,11 @@ def generate_daily_summary(force=False):
             
             tasks_text.append(f"- {t.get('title', 'No Title')} [{t.get('status', 'Pending')}]: {t.get('context', 'No Context')}")
             ts = t.get('timestamp')
+            updated = t.get('updated_at')
             if ts and (latest_task_time is None or ts > latest_task_time):
                 latest_task_time = ts
+            if updated and (latest_task_time is None or updated > latest_task_time):
+                latest_task_time = updated
 
         if not tasks_text:
             return {'generated': False, 'reason': 'No tasks found for today.'}
