@@ -222,7 +222,7 @@ def generate_daily_summary(force=False):
                 return {'generated': False, 'reason': 'No new tasks since last summary.', 'summary': last_summary.get('content', '')}
 
         # Generate with Gemini
-        prompt = f"Summarize the following tasks for today ({today_str}) by an intern. Create a concise, professional end-of-day status update. Be brief and use bullet points:\n\n" + "\n".join(tasks_text)
+        prompt = f"Summarize the following tasks for today ({today_str}) by an intern. Create a concise, professional end-of-day status update. Be brief, use bullet points, and ONLY summarize the tasks provided. Do NOT add any introductory text, pleasantries, or suggestions for 'next steps' or 'next sessions':\n\n" + "\n".join(tasks_text)
         
         response = gemini_client.models.generate_content(
             model='gemini-3.1-flash-lite',
