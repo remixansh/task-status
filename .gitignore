@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data-9875b-firebase-adminsdk-fbsvc-99f54fcf27.json
+*.log

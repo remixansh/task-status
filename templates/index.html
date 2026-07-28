@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskStatus Dashboard</title>
+    <meta name="description" content="Intern Task Status Dashboard — track daily work with calendar view and terminal logs.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/app.js" defer></script>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="header-brand">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>TaskStatus</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="view-toggle">
+                <button id="toggle-dashboard" class="toggle-btn active">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Dashboard
+                </button>
+                <button id="toggle-log" class="toggle-btn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Terminal
+                </button>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btn-generate-summary" class="btn btn-ghost" title="Generate AI Summary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>
+                Summary
+            </button>
+            <button id="btn-notifications" class="btn-icon-header" title="Summaries">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span id="notif-badge" class="notif-badge hidden">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Notification Panel (Summaries) -->
+    <div id="notif-panel" class="notif-panel hidden">
+        <div class="notif-panel-header">
+            <h3>Summaries</h3>
+            <button id="notif-panel-close" class="btn-close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="notif-panel-body" class="notif-panel-body">
+            <!-- Summaries listed here -->
+        </div>
+    </div>
+    <div id="notif-backdrop" class="notif-backdrop hidden"></div>
+
+    <main class="app-main">
+
+        <!-- ===== DASHBOARD VIEW ===== -->
+        <section id="dashboard-view" class="view-section active">
+            <div class="dashboard-layout">
+
+                <!-- Calendar Panel -->
+                <aside class="calendar-panel">
+                    <div class="calendar-nav">
+                        <button id="cal-prev" class="cal-nav-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <h3 id="cal-month-year" class="cal-title"></h3>
+                        <button id="cal-next" class="cal-nav-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="cal-day-label">Mo</div>
+                        <div class="cal-day-label">Tu</div>
+                        <div class="cal-day-label">We</div>
+                        <div class="cal-day-label">Th</div>
+                        <div class="cal-day-label">Fr</div>
+                        <div class="cal-day-label">Sa</div>
+                        <div class="cal-day-label">Su</div>
+                        <div id="cal-days" class="cal-days-container"></div>
+                    </div>
+                    <!-- Stats -->
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-total">0</span>
+                            <span class="stat-label">Total</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-progress">0</span>
+                            <span class="stat-label">In Progress</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-done">0</span>
+                            <span class="stat-label">Done</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Tasks Panel -->
+                <div class="tasks-panel">
+                    <div class="tasks-panel-header">
+                        <h2 id="selected-date-title" class="tasks-date-title">Today</h2>
+                        <span id="tasks-count" class="tasks-count-badge">0 tasks</span>
+                    </div>
+                    <div id="task-grid" class="task-grid">
+                        <!-- Task cards rendered here -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===== LOG / TERMINAL VIEW ===== -->
+        <section id="log-view" class="view-section">
+            <div class="terminal">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="terminal-title">taskstatus — logs</span>
+                    <div class="terminal-dots" style="visibility:hidden">
+                        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    </div>
+                </div>
+                <div id="terminal-body" class="terminal-body">
+                    <!-- Terminal log entries rendered here -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Floating Action Button (+) -->
+    <button id="fab-add-task" class="fab" title="Add Task">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
+    <!-- Add Task Modal -->
+    <div id="add-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>New Task</h2>
+                <button id="add-modal-close" class="btn-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-task-form">
+                    <label class="form-label">Title</label>
+                    <input type="text" id="new-task-title" placeholder="What are you working on?" required>
+                    <label class="form-label">Context</label>
+                    <textarea id="new-task-context" placeholder="Add details or notes..." rows="3"></textarea>
+                    <label class="form-label">Status</label>
+                    <select id="new-task-status" required>
+                        <option value="Pending" selected>Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Done">Done</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-block">Add Task</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Task Modal (Lightbox) -->
+    <div id="view-modal" class="modal-overlay hidden">
+        <div class="modal-card view-modal-card">
+            <div class="modal-header borderless">
+                <div class="view-modal-meta">
+                    <span id="view-task-status" class="status-badge"></span>
+                    <span id="view-task-time" class="task-time" style="margin-left: 0.5rem"></span>
+                </div>
+                <button id="view-modal-close" class="btn-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding-top: 0">
+                <h2 id="view-task-title" class="view-task-title"></h2>
+                <div id="view-task-context" class="view-task-context markdown-body"></div>
+                <hr class="modal-divider">
+                <div class="comments-section">
+                    <h3>Comments</h3>
+                    <div id="view-comments-list" class="comments-list"></div>
+                    <form id="view-add-comment-form" class="comment-form">
+                        <input type="text" id="view-comment-name" placeholder="Your Name" required>
+                        <textarea id="view-comment-text" placeholder="Add a comment..." rows="2" required></textarea>
+                        <button type="submit" class="btn btn-outline">Add Comment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Edit Task</h2>
+                <button id="modal-close" class="btn-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-task-form">
+                    <label class="form-label">Title</label>
+                    <input type="text" id="edit-task-title" required>
+                    <label class="form-label">Context</label>
+                    <textarea id="edit-task-context" rows="3"></textarea>
+                    <label class="form-label">Status</label>
+                    <select id="edit-task-status" required>
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Done">Done</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+</body>
+</html>

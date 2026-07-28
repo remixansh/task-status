@@ -1,0 +1,8 @@
+flask
+firebase-admin
+google-genai
+APScheduler
+python-dotenv
+flask-cors
+pytz
+gunicorn
