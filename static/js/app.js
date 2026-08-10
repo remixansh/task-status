@@ -127,18 +127,35 @@ async function fetchTasks() {
     }
 }
 
+function requireAuthWrapper(action) {
+    if (localStorage.getItem('auth_token')) {
+        action();
+    } else {
+        pendingAction = action;
+        document.getElementById('login-modal').classList.remove('hidden');
+    }
+}
+
 async function createTask(data) {
     try {
         const res = await fetch('/api/tasks', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+            },
             body: JSON.stringify(data)
         });
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            document.getElementById('login-modal').classList.remove('hidden');
+            throw new Error('Unauthorized');
+        }
         if (!res.ok) throw new Error('Failed');
         showToast('Task added', 'success');
         fetchTasks();
     } catch (e) {
-        showToast('Could not add task', 'error');
+        if (e.message !== 'Unauthorized') showToast('Could not add task', 'error');
     }
 }
 
@@ -146,23 +163,40 @@ async function updateTask(id, data) {
     try {
         const res = await fetch(`/api/tasks/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+            },
             body: JSON.stringify(data)
         });
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            document.getElementById('login-modal').classList.remove('hidden');
+            throw new Error('Unauthorized');
+        }
         if (!res.ok) throw new Error('Failed');
         showToast('Task updated', 'success');
         fetchTasks();
     } catch (e) {
-        showToast('Could not update task', 'error');
+        if (e.message !== 'Unauthorized') showToast('Could not update task', 'error');
     }
 }
 
 async function deleteTask(id) {
     try {
-        const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/tasks/${id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('auth_token') }
+        });
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            document.getElementById('login-modal').classList.remove('hidden');
+            throw new Error('Unauthorized');
+        }
         if (!res.ok) throw new Error('Failed');
         showToast('Task deleted', 'success');
         fetchTasks();
+
     } catch (e) {
         showToast('Could not delete task', 'error');
     }
@@ -586,7 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // FAB — open add modal
     document.getElementById('fab-add-task').addEventListener('click', () => {
-        document.getElementById('add-modal').classList.remove('hidden');
+        requireAuthWrapper(() => {
+            document.getElementById('add-modal').classList.remove('hidden');
+        });
     });
 
     // Close add modal
@@ -624,22 +660,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (editBtn) {
             e.stopPropagation();
-            const id = editBtn.dataset.id;
-            const task = tasks.find(t => String(t.id) === String(id));
-            if (task) {
-                editingTaskId = id;
-                document.getElementById('edit-task-title').value = task.title;
-                document.getElementById('edit-task-context').value = task.context || '';
-                document.getElementById('edit-task-status').value = task.status || 'Pending';
-                document.getElementById('edit-modal').classList.remove('hidden');
-            }
+            requireAuthWrapper(() => {
+                const id = editBtn.dataset.id;
+                const task = tasks.find(t => String(t.id) === String(id));
+                if (task) {
+                    editingTaskId = id;
+                    document.getElementById('edit-task-title').value = task.title;
+                    document.getElementById('edit-task-context').value = task.context || '';
+                    document.getElementById('edit-task-status').value = task.status || 'Pending';
+                    document.getElementById('edit-modal').classList.remove('hidden');
+                }
+            });
             return;
         }
         
         if (deleteBtn) {
             e.stopPropagation();
-            const id = deleteBtn.dataset.id;
-            if (confirm('Delete this task?')) deleteTask(id);
+            requireAuthWrapper(() => {
+                const id = deleteBtn.dataset.id;
+                if (confirm('Delete this task?')) deleteTask(id);
+            });
             return;
         }
 
@@ -724,5 +764,42 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('view-modal-close').addEventListener('click', closeViewModal);
     document.getElementById('view-modal').addEventListener('click', e => {
         if (e.target.id === 'view-modal') closeViewModal();
+    });
+
+    // Login form
+    document.getElementById('login-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            if (!res.ok) throw new Error('Invalid credentials');
+            const data = await res.json();
+            localStorage.setItem('auth_token', data.token);
+            document.getElementById('login-modal').classList.add('hidden');
+            if (pendingAction) {
+                pendingAction();
+                pendingAction = null;
+            }
+            showToast('Logged in successfully', 'success');
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+        } catch(err) {
+            showToast('Invalid credentials', 'error');
+        }
+    });
+
+    // Close login modal
+    const closeLoginModal = () => {
+        document.getElementById('login-modal').classList.add('hidden');
+        pendingAction = null;
+    };
+    document.getElementById('login-modal-close').addEventListener('click', closeLoginModal);
+    document.getElementById('login-modal').addEventListener('click', e => {
+        if (e.target.id === 'login-modal') closeLoginModal();
     });
 });

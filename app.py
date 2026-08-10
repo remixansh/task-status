@@ -4,6 +4,7 @@ import pytz
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
+from functools import wraps
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -52,6 +53,29 @@ def delete_collection(coll_ref, batch_size):
 def index():
     return render_template('index.html')
 
+# --- Authentication ---
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Unauthorized'}), 401
+        token = auth_header.split(' ')[1]
+        if token != 'ansh-admin-token':
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json or {}
+    username = data.get('username')
+    password = data.get('password')
+    if username == 'ansh' and password == '9431':
+        return jsonify({'token': 'ansh-admin-token'}), 200
+    return jsonify({'error': 'Invalid credentials'}), 401
+# ----------------------
+
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     try:
@@ -83,6 +107,7 @@ def get_tasks():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/tasks', methods=['POST'])
+@require_auth
 def create_task():
     try:
         data = request.json or {}
@@ -103,6 +128,7 @@ def create_task():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/tasks/<task_id>', methods=['PUT'])
+@require_auth
 def update_task(task_id):
     try:
         data = request.json or {}
@@ -116,6 +142,7 @@ def update_task(task_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/tasks/<task_id>', methods=['DELETE'])
+@require_auth
 def delete_task(task_id):
     try:
         doc_ref = db.collection('tasks').document(task_id)
