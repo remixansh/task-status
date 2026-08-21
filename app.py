@@ -283,7 +283,7 @@ def generate_daily_summary(force=False):
         summary_task = {
             'title': f"Daily Summary - {today_str}",
             'context': summary_text,
-            'status': 'Completed',
+            'status': 'Done',
             'timestamp': get_ist_now(),
             'is_summary': True
         }

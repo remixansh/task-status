@@ -63,7 +63,8 @@ function getStatusClass(status) {
     if (!status) return 'status-pending';
     switch (status.toLowerCase()) {
         case 'in progress': return 'status-in-progress';
-        case 'done': return 'status-done';
+        case 'done':
+        case 'completed': return 'status-done';
         default: return 'status-pending';
     }
 }
@@ -78,6 +79,40 @@ function showToast(message, type = 'info') {
         toast.classList.add('toast-fade-out');
         toast.addEventListener('animationend', () => toast.remove());
     }, 2500);
+}
+
+// Reusable styled confirmation dialog — resolves true on confirm, false otherwise.
+function showConfirm({ title = 'Are you sure?', message = 'This action cannot be undone.', confirmText = 'Confirm', danger = true } = {}) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirm-modal');
+        const okBtn = document.getElementById('confirm-ok');
+        const cancelBtn = document.getElementById('confirm-cancel');
+        const closeBtn = document.getElementById('confirm-close');
+
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-message').textContent = message;
+        okBtn.textContent = confirmText;
+        okBtn.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+
+        const cleanup = (result) => {
+            modal.classList.add('hidden');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            resolve(result);
+        };
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onBackdrop = (e) => { if (e.target.id === 'confirm-modal') cleanup(false); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+
+        modal.classList.remove('hidden');
+    });
 }
 
 function getTaskDateKey(task) {
@@ -281,11 +316,12 @@ function renderCalendar() {
 
     const todayKey = formatDateKey(new Date());
 
-    // Collect date keys that have tasks
-    const taskDates = new Set();
+    // Count real (non-summary) tasks per date to drive the calendar heatmap
+    const taskCounts = new Map();
     tasks.forEach(t => {
+        if (t.is_summary) return;
         const k = getTaskDateKey(t);
-        if (k) taskDates.add(k);
+        if (k) taskCounts.set(k, (taskCounts.get(k) || 0) + 1);
     });
 
     // Previous month padding
@@ -307,7 +343,11 @@ function renderCalendar() {
         el.textContent = d;
         if (key === todayKey) el.classList.add('today');
         if (key === selectedDate) el.classList.add('selected');
-        if (taskDates.has(key)) el.classList.add('has-tasks');
+        // Heatmap: bucket 1-2/3-4/5-6/7+ tasks into levels 1-4. Today stays solid accent.
+        const count = taskCounts.get(key) || 0;
+        if (count > 0 && key !== todayKey) {
+            el.classList.add('lvl-' + Math.min(4, Math.ceil(count / 2)));
+        }
         el.addEventListener('click', () => {
             selectedDate = key;
             renderCalendar();
@@ -554,6 +594,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchTasks();
     fetchSummaries();
 
+    // Theme toggle (initial data-theme is set by the inline script in <head>)
+    document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const next = isDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('theme', next); } catch (e) {}
+    });
+
     // Notification Panel Toggle
     const btnNotif = document.getElementById('btn-notifications');
     const notifPanel = document.getElementById('notif-panel');
@@ -678,7 +726,11 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             requireAuthWrapper(() => {
                 const id = deleteBtn.dataset.id;
-                if (confirm('Delete this task?')) deleteTask(id);
+                showConfirm({
+                    title: 'Delete task?',
+                    message: 'This task and its comments will be permanently deleted.',
+                    confirmText: 'Delete'
+                }).then(ok => { if (ok) deleteTask(id); });
             });
             return;
         }

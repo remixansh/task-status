@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "taskstatus",
+      "runtimeExecutable": "C:/Users/HP/Desktop/CS Project/taskstatus/.venv/Scripts/python.exe",
+      "runtimeArgs": ["app.py"],
+      "port": 5000
+    }
+  ]
+}
