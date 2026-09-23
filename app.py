@@ -27,7 +27,12 @@ except Exception as e:
     db = None
 
 # Gemini Setup
-gemini_client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
+# Bound the request so a slow/hung Gemini call fails with a catchable exception
+# instead of hanging past gunicorn's worker timeout and getting SIGKILLed.
+gemini_client = genai.Client(
+    api_key=os.environ.get('GEMINI_API_KEY'),
+    http_options=genai.types.HttpOptions(timeout=20000)  # 20s, in milliseconds
+)
 
 # Timezone setup
 IST = pytz.timezone('Asia/Kolkata')
