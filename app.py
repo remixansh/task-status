@@ -29,9 +29,12 @@ except Exception as e:
 # Gemini Setup
 # Bound the request so a slow/hung Gemini call fails with a catchable exception
 # instead of hanging past gunicorn's worker timeout and getting SIGKILLed.
+# NOTE: this value is also sent to Gemini as the server-side deadline
+# (X-Server-Timeout), so too low a number causes the backend itself to abort
+# with 504 DEADLINE_EXCEEDED on slower generations - keep it generous.
 gemini_client = genai.Client(
     api_key=os.environ.get('GEMINI_API_KEY'),
-    http_options=genai.types.HttpOptions(timeout=20000)  # 20s, in milliseconds
+    http_options=genai.types.HttpOptions(timeout=45000)  # 45s, in milliseconds
 )
 
 # Timezone setup
